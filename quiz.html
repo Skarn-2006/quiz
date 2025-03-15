@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Complex Mind Quiz Game</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f0f2f5;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .quiz-container {
+      background: #ffffff;
+      padding: 20px 30px;
+      border-radius: 8px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+      width: 90%;
+      max-width: 600px;
+      text-align: center;
+    }
+    h1 {
+      margin-top: 0;
+    }
+    #progress {
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+    #question {
+      font-size: 1.2em;
+      margin-bottom: 20px;
+    }
+    #choices {
+      margin: 20px 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .choice-btn {
+      background-color: #008cba;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 10px;
+      margin: 5px 0;
+      cursor: pointer;
+      font-size: 1em;
+      transition: background-color 0.3s;
+    }
+    .choice-btn:hover {
+      background-color: #005f5f;
+    }
+    .correct {
+      background-color: #28a745 !important;
+    }
+    .incorrect {
+      background-color: #dc3545 !important;
+    }
+    #next-btn {
+      background-color: #6c757d;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 10px 20px;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    #next-btn:hover:not(:disabled) {
+      background-color: #5a6268;
+    }
+    #next-btn:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    #score {
+      font-size: 1.2em;
+      margin-top: 20px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="quiz-container">
+    <h1>Complex Mind Quiz Game</h1>
+    <div id="progress">Question 1 / 100</div>
+    <div id="question"></div>
+    <div id="choices"></div>
+    <button id="next-btn" disabled>Next Question</button>
+    <div id="score"></div>
+  </div>
+
+  <script>
+    // Utility: Random integer in inclusive range [min, max]
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    // Utility: Shuffle an array (Fisher-Yates algorithm)
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = randomInt(0, i);
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    // Generate four choices so that one is the correct answer.
+    function generateChoices(correct) {
+      const choices = [correct];
+      while (choices.length < 4) {
+        let offset = randomInt(-5, 5);
+        if (offset === 0) continue; // Skip zero offset to avoid duplicating correct answer.
+        const distractor = correct + offset;
+        if (distractor < 0) continue; // Avoid negative answers.
+        if (!choices.includes(distractor)) {
+          choices.push(distractor);
+        }
+      }
+      return shuffle(choices);
+    }
+
+    // Generate 100 questions divided among arithmetic types.
+    function generateQuestions() {
+      const questions = [];
+
+      // 25 Addition questions (Easy)
+      for (let i = 0; i < 25; i++) {
+        const a = randomInt(1, 20);
+        const b = randomInt(1, 20);
+        const questionText = `What is ${a} + ${b}?`;
+        const correct = a + b;
+        const choices = generateChoices(correct);
+        questions.push({ question: questionText, choices, answer: correct });
+      }
+
+      // 25 Subtraction questions (Moderate)
+      for (let i = 0; i < 25; i++) {
+        const a = randomInt(21, 50);
+        const b = randomInt(1, a); // Ensure non-negative result
+        const questionText = `What is ${a} - ${b}?`;
+        const correct = a - b;
+        const choices = generateChoices(correct);
+        questions.push({ question: questionText, choices, answer: correct });
+      }
+
+      // 25 Multiplication questions (Harder)
+      for (let i = 0; i < 25; i++) {
+        const a = randomInt(1, 15);
+        const b = randomInt(1, 15);
+        const questionText = `What is ${a} × ${b}?`;
+        const correct = a * b;
+        const choices = generateChoices(correct);
+        questions.push({ question: questionText, choices, answer: correct });
+      }
+
+      // 25 Division questions (Most challenging)
+      for (let i = 0; i < 25; i++) {
+        // Ensure dividend is divisible by divisor
+        const divisor = randomInt(1, 20);
+        const quotient = randomInt(1, 10);
+        const dividend = divisor * quotient;
+        const questionText = `What is ${dividend} ÷ ${divisor}?`;
+        const correct = quotient;
+        const choices = generateChoices(correct);
+        questions.push({ question: questionText, choices, answer: correct });
+      }
+
+      // Optionally shuffle to mix question types.
+      return shuffle(questions);
+    }
+
+    // Global variables to hold game state
+    const questions = generateQuestions();
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let answered = false;
+
+    // DOM element references
+    const progressElement = document.getElementById("progress");
+    const questionElement = document.getElementById("question");
+    const choicesContainer = document.getElementById("choices");
+    const nextButton = document.getElementById("next-btn");
+    const scoreElement = document.getElementById("score");
+
+    // Display the question and its choices.
+    function displayQuestion() {
+      answered = false;
+      nextButton.disabled = true;
+      questionElement.textContent = "";
+      choicesContainer.innerHTML = "";
+      scoreElement.textContent = "";
+
+      if (currentQuestionIndex >= questions.length) {
+        showFinalScore();
+        return;
+      }
+
+      progressElement.textContent = `Question ${currentQuestionIndex + 1} / ${questions.length}`;
+      const currentQuestion = questions[currentQuestionIndex];
+      questionElement.textContent = currentQuestion.question;
+
+      // Create a button for each answer choice.
+      currentQuestion.choices.forEach(choice => {
+        const btn = document.createElement("button");
+        btn.textContent = choice;
+        btn.classList.add("choice-btn");
+        btn.addEventListener("click", () => selectAnswer(btn, currentQuestion));
+        choicesContainer.appendChild(btn);
+      });
+    }
+
+    // When a choice is selected: verify answer and visually update buttons.
+    function selectAnswer(button, currQuestion) {
+      if (answered) return;
+      answered = true;
+
+      const userAnswer = parseInt(button.textContent, 10);
+      if (userAnswer === currQuestion.answer) {
+        button.classList.add("correct");
+        score++;
+      } else {
+        button.classList.add("incorrect");
+        // Highlight the correct answer
+        Array.from(choicesContainer.children).forEach(btn => {
+          if (parseInt(btn.textContent, 10) === currQuestion.answer) {
+            btn.classList.add("correct");
+          }
+        });
+      }
+
+      // Disable all choices once an answer is picked.
+      Array.from(choicesContainer.children).forEach(btn => btn.disabled = true);
+      nextButton.disabled = false;
+    }
+
+    // Show final results when the quiz is complete.
+    function showFinalScore() {
+      questionElement.textContent = "Quiz Completed!";
+      choicesContainer.innerHTML = "";
+      progressElement.textContent = "";
+      scoreElement.textContent = `Your Score: ${score} / ${questions.length}`;
+      nextButton.style.display = "none";
+    }
+
+    // Event listener for the Next Question button.
+    nextButton.addEventListener("click", () => {
+      currentQuestionIndex++;
+      displayQuestion();
+    });
+
+    // Start the quiz
+    displayQuestion();
+  </script>
+</body>
+</html>
